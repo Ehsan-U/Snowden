@@ -51,7 +51,7 @@ class SessionManager():
             json.dump(cookies, f)
             logger.info(" [+] Cookies saved")
         with open('data/user_data.json', 'w') as f:
-            json.dump({"user": user_id.split('/')[-2], "user_urn": user_urn.strip('"')}, f)
+            json.dump({"user": user_id.split('/')[-2], "user_urn": user_urn}, f)
 
 
     def login(self) -> None:

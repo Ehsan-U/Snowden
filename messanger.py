@@ -39,7 +39,7 @@ class Messanger(SessionManager):
                 username = url.split('in/')[-1].replace('/','')
                 logger.info(f" [+] Scraping {username}")
                 modified_url = f"https://www.linkedin.com:443/voyager/api/identity/dash/profiles?q=memberIdentity&memberIdentity={username}&decorationId=com.linkedin.voyager.dash.deco.identity.profile.TopCardSupplementary-120"
-                response = send_request(self.session, 'POST', modified_url, headers=build_headers(self.csrf_token))
+                response = send_request(self.session, 'GET', modified_url, headers=build_headers(self.csrf_token))
                 recipientUrn = self.get_recipientUrn(response)
                 trackingId = self.get_trackingID(recipientUrn, username)
                 self.send_msg(username, recipientUrn, trackingId)
@@ -51,7 +51,7 @@ class Messanger(SessionManager):
         try:
             logger.info(" [+] Getting own urn")
             with open("data/user_data.json", 'r') as f:
-                urn = json.load(f).get('user_urn')
+                urn = json.load(f).get('user_urn').strip('"')
             return urn
         except Exception as e:
             logger.error(e)
@@ -69,7 +69,7 @@ class Messanger(SessionManager):
             data['mailboxUrn'] = self.own_urn
             data['trackingId'] = trackingId
             data['hostRecipientUrns'] = [recipientUrn]
-            response = send_request(self.session ,"POST", url, headers=headers, data=json.dumps(data))
+            response = send_request(self.session ,"POST", url, headers=headers, data=data)
             if response.status_code == 200:
                 logger.info(f" [+] Message sent to {username}")
         except Exception as e:
