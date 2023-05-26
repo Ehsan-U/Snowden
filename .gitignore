@@ -1,4 +1,4 @@
-data/
+data/*
 user_data_dir/
 Pipfile
 Pipfile.lock
