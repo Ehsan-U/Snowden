@@ -35,7 +35,6 @@ class SessionManager():
         else:
             return None
 
-
     def load_cookies(self) -> bool:
         if os.path.exists("data/cookies.json"):
             with open("data/cookies.json", 'r') as f:
