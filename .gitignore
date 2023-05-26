@@ -1,0 +1,5 @@
+data/
+user_data_dir/
+Pipfile
+Pipfile.lock
+test.py
