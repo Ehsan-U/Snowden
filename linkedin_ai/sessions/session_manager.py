@@ -5,7 +5,7 @@ import os
 from playwright.sync_api import sync_playwright
 import json
 import time
-from logging_config import logger
+from linkedin_ai.logging_config import logger
 import re
 
 

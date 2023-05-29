@@ -7,11 +7,15 @@ import random
 import time
 import uuid
 from copy import deepcopy
-import settings
-from logging_config import logger
+from linkedin_ai import settings
+from linkedin_ai.logging_config import logger
 from requests import Session
+from tinydb import TinyDB, Query
 
 
+def init_db():
+    logger.info(" [+] Initializing database")
+    return (TinyDB(".tinydb/db.json"), Query())
 
 def create_session(cookies):
     session = Session()
