@@ -5,3 +5,5 @@ Pipfile.lock
 test.py
 .idea/
 __pycache__/
+chat.json
+message.json
