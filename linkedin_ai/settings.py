@@ -52,4 +52,4 @@ MSG_PAYLOAD = {
 
 DELAY = 15
 SLEEP_RANGE = [i / 10 for i in range(10, DELAY * 10)]
-MESSAGE = "Hi man!"
+MESSAGE = "Hi"

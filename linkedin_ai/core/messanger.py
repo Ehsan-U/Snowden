@@ -6,6 +6,8 @@ from linkedin_ai.utils import *
 from linkedin_ai import settings
 from linkedin_ai.logging_config import logger
 from urllib.parse import quote
+from linkedin_ai.openai.chatbot import ChatBot
+
 
 class Messanger(SessionManager):
 
@@ -48,20 +50,24 @@ class Messanger(SessionManager):
 
 
     def make_sale(self, recipientUrn, trackingId, recipient):
+        bot = ChatBot()
         while True:
             chat_history = self.read_inbox(recipient=recipient)
-            if chat_history:
+            if not chat_history:
+                # mean we already have a chat
                 parsed_history = self.parse_chat(chat_history)
                 if parsed_history:
                     recent_msg = sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True)[0]
                     if recipientUrn.lower() in recent_msg.get("sender").lower():
                         logger.info(f" [+] got reply from {recipient}")
-                        # pass msg to chatbot
-                        self.send_msg(recipient, recipientUrn, trackingId)
+                        prompt = bot.construct_prompt(parsed_history)
+                        response = bot.call_gpt(prompt)
+                        gpt_reply = bot.parse(response)
+                        self.send_msg(gpt_reply, recipient, recipientUrn, trackingId)
                         continue
             else:
-                # first msg
-                self.send_msg(recipient, recipientUrn, trackingId)
+                inital_msg = bot.generate_msg(recipient)
+                self.send_msg(inital_msg, recipient, recipientUrn, trackingId)
 
 
     def parse_chat(self, chat):
@@ -125,14 +131,14 @@ class Messanger(SessionManager):
             logger.error(e)
 
 
-    def send_msg(self, recipient, recipientUrn, trackingId):
+    def send_msg(self, message, recipient, recipientUrn, trackingId):
         try:
             logger.info(f" [+] Sending message to {recipient}")
             url = 'https://www.linkedin.com/voyager/api/voyagerMessagingDashMessengerMessages?action=createMessage'
             headers = build_headers(self.csrf_token, keyword=recipient)
             del headers['X-Li-Pem-Metadata']
             data = deepcopy(settings.MSG_PAYLOAD)
-            data['message']['body']['text'] = settings.MESSAGE
+            data['message']['body']['text'] = message
             data['message']['originToken'] = generate_token()
             data['mailboxUrn'] = self.own_urn
             data['trackingId'] = trackingId
