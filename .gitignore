@@ -7,3 +7,4 @@ test.py
 __pycache__/
 chat.json
 message.json
+config.ini
