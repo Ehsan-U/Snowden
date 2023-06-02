@@ -11,6 +11,26 @@ from linkedin_ai.openai.chatbot import ChatBot
 
 class Messanger(SessionManager):
 
+    def get_name(self, response):
+        try:
+            logger.info(" [+] Getting name")
+            for item in response.json().get("included"):
+                if item.get("publicIdentifier"):
+                    return item.get("firstName")
+        except Exception as e:
+            logger.error(e)
+
+
+    def get_headline(self, response):
+        try:
+            logger.info(" [+] Getting headline")
+            for item in response.json().get("included"):
+                if item.get("headline"):
+                    return item.get("headline")
+        except Exception as e:
+            logger.error(e)
+
+
     def get_recipientUrn(self, response):
         try:
             logger.info(" [+] Getting pre-requisites")
@@ -35,6 +55,20 @@ class Messanger(SessionManager):
             logger.error(e)
 
 
+    def get_user_metadata(self, response, username):
+        recipient_name = self.get_name(response)
+        recipient_headline = self.get_headline(response)
+        recipient_urn = self.get_recipientUrn(response)
+        tracking_id = self.get_trackingID(recipient_urn, username)
+        return {
+            "recipient_name": recipient_name,
+            "recipient_headline": recipient_headline,
+            "recipient_urn": recipient_urn,
+            "tracking_id": tracking_id,
+            "recipient_username": username
+        }
+
+
     def process_urls(self, urls):
         try:
             for url in urls:
@@ -42,38 +76,38 @@ class Messanger(SessionManager):
                 logger.info(f" [+] Scraping {username}")
                 modified_url = f"https://www.linkedin.com:443/voyager/api/identity/dash/profiles?q=memberIdentity&memberIdentity={username}&decorationId=com.linkedin.voyager.dash.deco.identity.profile.TopCardSupplementary-120"
                 response = send_request(self.session, 'GET', modified_url, headers=build_headers(self.csrf_token))
-                recipientUrn = self.get_recipientUrn(response)
-                trackingId = self.get_trackingID(recipientUrn, username)
-                self.make_sale(recipientUrn, trackingId, username)
+                metadata = self.get_user_metadata(response, username)
+                self.make_sale(**metadata)
         except Exception as e:
             logger.error(e)
 
 
-    def make_sale(self, recipientUrn, trackingId, recipient):
+    def make_sale(self, recipient_name, recipient_headline, recipient_urn, tracking_id, recipient_username):
         bot = ChatBot()
         while True:
-            chat_history = self.read_inbox(recipient=recipient)
-            if not chat_history:
+            chat_history = self.read_inbox(recipient=recipient_username)
+            if chat_history:
                 # mean we already have a chat
-                parsed_history = self.parse_chat(chat_history)
+                parsed_history = self.parse_chat(chat_history, recipient_name)
                 if parsed_history:
                     recent_msg = sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True)[0]
-                    if recipientUrn.lower() in recent_msg.get("sender").lower():
-                        logger.info(f" [+] got reply from {recipient}")
-                        prompt = bot.construct_prompt(parsed_history)
-                        response = bot.call_gpt(prompt)
-                        gpt_reply = bot.parse(response)
-                        self.send_msg(gpt_reply, recipient, recipientUrn, trackingId)
+                    if recipient_urn.lower() in recent_msg.get("sender").lower():
+                        logger.info(f" [+] got reply from {recipient_name}")
+                        prompt = bot.construct_prompt(parsed_history[recipient_name])
+                        if prompt:
+                            response = bot.call_gpt(prompt)
+                            gpt_reply = bot.parse(response)
+                            self.send_msg(gpt_reply, recipient_username, recipient_urn, tracking_id)
                         continue
             else:
-                inital_msg = bot.generate_msg(recipient)
-                self.send_msg(inital_msg, recipient, recipientUrn, trackingId)
+                inital_msg = bot.generate_msg(recipient_name, recipient_headline)
+                self.send_msg(inital_msg, recipient_username, recipient_urn, tracking_id)
 
 
-    def parse_chat(self, chat):
+    def parse_chat(self, chat, recipient_name):
         try:
             logger.info(" [+] parsing chat history")
-            history = {'bot': [], 'person': [], 'all': []}
+            history = {'me': [], recipient_name: [], "all": []}
             for message in chat.get("included"):
                 sender = message.get("*sender")
                 if sender is not None:
@@ -83,10 +117,10 @@ class Messanger(SessionManager):
                         "sender": message.get("*sender")
                     }
                     if self.own_urn.lower() in sender.lower():
-                        history['bot'].append(schema)
+                        history['me'].append(schema)
                     else:
-                        history['person'].append(schema)
-                    history['all'].append(schema)
+                        history[recipient_name].append(schema)
+                    history["all"].append(schema)
             return history
         except Exception as e:
             logger.error(e)

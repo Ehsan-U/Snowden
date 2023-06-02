@@ -13,14 +13,24 @@ class ChatBot():
         config.read("config.ini")
         openai.api_key = config.get("OpenAI", "key")
         self.max_tokens = max_tokens
+        self.system_prompt = {"role": "system", "content": "you are a helpful assistant"}
         logger.info(" [+] API key Loaded")
+
+    def build_gpt3_prompt(self, history):
+        try:
+            logger.info("[+] Building prompt")
+            prompt = [self.system_prompt]
+            for message in history:
+                # gpt only allow roles ( user, system, assistant )
+                prompt.append({"role": 'user', "content": message['body']})
+            return prompt
+        except Exception as e:
+            logger.error(e)
 
 
     def construct_prompt(self, chat_history):
-        try:
-            pass
-        except Exception as e:
-            logger.error(e)
+        prompt = self.build_gpt3_prompt(chat_history)
+        return prompt
 
 
     def call_gpt(self, prompt):
@@ -37,20 +47,22 @@ class ChatBot():
 
     def parse(self, response):
         try:
-            pass
+            content = response.get("choices")[0].get("message").get("content")
+            return content
         except Exception as e:
             logger.error(e)
 
 
-    def generate_msg(self, recipient):
+    def generate_msg(self, recipient, recipientHeadline):
         try:
             prompt = [
-                {"role": "system", "content": "you are a helpful assistant"},
-                {"role": "user", "content": f"write an initial personalized message to {recipient} in context of linkedin."}
+                self.system_prompt,
+                {"role": "user", "content": f"write a short personalized message to {recipient} in context of linkedin. This is the profile headline of {recipient}: {recipientHeadline}"}
             ]
             response = self.call_gpt(prompt)
             gpt_reply = self.parse(response)
             return gpt_reply
         except Exception as e:
             logger.error(e)
+
 
