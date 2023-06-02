@@ -8,3 +8,4 @@ __pycache__/
 chat.json
 message.json
 config.ini
+user.json
