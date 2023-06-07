@@ -13,7 +13,7 @@ class Messanger(SessionManager):
 
     def get_name(self, response):
         try:
-            logger.info(" [+] Getting name")
+            logger.debug("Getting name")
             for item in response.json().get("included"):
                 if item.get("publicIdentifier"):
                     return item.get("firstName")
@@ -23,7 +23,7 @@ class Messanger(SessionManager):
 
     def get_headline(self, response):
         try:
-            logger.info(" [+] Getting headline")
+            logger.debug("Getting headline")
             for item in response.json().get("included"):
                 if item.get("headline"):
                     return item.get("headline")
@@ -33,7 +33,7 @@ class Messanger(SessionManager):
 
     def get_recipientUrn(self, response):
         try:
-            logger.info(" [+] Getting pre-requisites")
+            logger.debug("Getting pre-requisites")
             for item in response.json().get("included"):
                 if item.get("profileStatefulProfileActions"):
                     for i in item.get("profileStatefulProfileActions").get("overflowActions"):
@@ -46,7 +46,7 @@ class Messanger(SessionManager):
 
     def get_trackingID(self, recipientUrn, username):
         try:
-            logger.info(" [+] Getting trackingId")
+            logger.debug("Getting trackingId")
             url = f"https://www.linkedin.com:443/voyager/api/graphql?includeWebMetadata=true&variables=(vieweeId:{recipientUrn.split('fsd_profile:')[-1]})&&queryId=voyagerLearningDashLearningRecommendations.7e671a8405bfd461031db616dd3ccf64"
             response = send_request(self.session, "GET", url, headers=build_headers(self.csrf_token, keyword=username))
             trackingId = response.json().get("data").get("data").get("learningDashLearningRecommendationsByProfile").get("metadata").get("trackingId")
@@ -73,7 +73,7 @@ class Messanger(SessionManager):
         try:
             for url in urls:
                 username = url.split('in/')[-1].replace('/','')
-                logger.info(f" [+] Scraping {username}")
+                logger.info(f"Scraping {username}")
                 modified_url = f"https://www.linkedin.com:443/voyager/api/identity/dash/profiles?q=memberIdentity&memberIdentity={username}&decorationId=com.linkedin.voyager.dash.deco.identity.profile.TopCardSupplementary-120"
                 response = send_request(self.session, 'GET', modified_url, headers=build_headers(self.csrf_token))
                 metadata = self.get_user_metadata(response, username)
@@ -92,12 +92,17 @@ class Messanger(SessionManager):
                 if parsed_history:
                     recent_msg = sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True)[0]
                     if recipient_urn.lower() in recent_msg.get("sender").lower():
-                        logger.info(f" [+] got reply from {recipient_name}")
-                        prompt = bot.construct_prompt(parsed_history[recipient_name])
+                        logger.info(f"got reply from {recipient_name}")
+                        prompt = bot.construct_prompt(recent_msg)
                         if prompt:
                             response = bot.call_gpt(prompt)
                             gpt_reply = bot.parse(response)
-                            self.send_msg(gpt_reply, recipient_username, recipient_urn, tracking_id)
+                            if gpt_reply:
+                                self.send_msg(gpt_reply, recipient_username, recipient_urn, tracking_id)
+                                if self.reached_user_limit(recipient_username):
+                                    logger.debug(f"Reached user messages limit")
+                                    break
+                                self.update_message_count(recipient_username)
                         continue
             else:
                 inital_msg = bot.generate_msg(recipient_name, recipient_headline)
@@ -106,7 +111,7 @@ class Messanger(SessionManager):
 
     def parse_chat(self, chat, recipient_name):
         try:
-            logger.info(" [+] parsing chat history")
+            logger.debug("parsing chat history")
             history = {'me': [], recipient_name: [], "all": []}
             for message in chat.get("included"):
                 sender = message.get("*sender")
@@ -129,7 +134,7 @@ class Messanger(SessionManager):
     @staticmethod
     def get_own_urn():
         try:
-            logger.info(" [+] Getting own urn")
+            logger.debug("Getting own urn")
             with open("data/user_data.json", 'r') as f:
                 urn = json.load(f).get('user_urn').strip('"')
             return urn
@@ -147,13 +152,13 @@ class Messanger(SessionManager):
 
     def dump_conversation_urn(self, recipient, response):
         try:
-            logger.info(f" [+] Dumping conversation urn for {recipient}")
+            logger.debug(f"Dumping conversation urn for {recipient}")
             conversation_urn = self.get_conversation_urn(response)
-            if self.db.contains(self.msg.recipient == recipient):
-                logger.info(" [+] conversation urn already exists")
+            if self.db.contains(self.USER.recipient == recipient):
+                logger.debug("conversation urn already exists")
                 return
             self.db.insert({"recipient": recipient, "conversation_urn": conversation_urn})
-            logger.info(f" [+] conversation urn added")
+            logger.debug(f"conversation urn added")
         except Exception as e:
             logger.error(e)
 
@@ -165,9 +170,38 @@ class Messanger(SessionManager):
             logger.error(e)
 
 
+    def update_message_count(self, recipient):
+        try:
+            logger.debug(f"Updating message count for {recipient}")
+            record = self.db.get(self.USER.recipient == recipient)
+            message_count = record.get("message_count")
+            if not message_count:
+                # first time, count will not exist
+                self.db.update({"message_count": 1}, self.USER.recipient == recipient)
+                return
+            self.db.update({"message_count": message_count + 1}, self.USER.recipient == recipient)
+            logger.debug("Message count updated")
+        except Exception as e:
+            logger.error(e)
+
+
+    def reached_user_limit(self, recipient):
+        try:
+            logger.debug("Checking user limit")
+            record = self.db.get(self.USER.recipient == recipient)
+            message_count = record.get("message_count")
+            if not message_count:
+                # first time, count will not exist
+                return False
+            if message_count >= 4:
+                return True
+        except Exception as e:
+            logger.error(e)
+
+
     def send_msg(self, message, recipient, recipientUrn, trackingId):
         try:
-            logger.info(f" [+] Sending message to {recipient}")
+            logger.info(f"Sending message to {recipient}")
             url = 'https://www.linkedin.com/voyager/api/voyagerMessagingDashMessengerMessages?action=createMessage'
             headers = build_headers(self.csrf_token, keyword=recipient)
             del headers['X-Li-Pem-Metadata']
@@ -180,21 +214,21 @@ class Messanger(SessionManager):
             response = send_request(self.session ,"POST", url, headers=headers, data=data)
             if response.status_code == 200:
                 self.dump_conversation_urn(recipient, response)
-                logger.info(f" [+] Message sent to {recipient}")
+                logger.info(f"Message sent to {recipient}")
         except Exception as e:
             logger.error(e)
 
 
     def read_inbox(self, recipient):
         try:
-            record = self.db.search(self.msg.recipient == recipient)
+            record = self.db.search(self.USER.recipient == recipient)
             if record:
-                logger.info(f" [+] Reading inbox for {recipient}")
+                logger.info(f"Reading inbox for {recipient}")
                 conversation_urn = quote(record[0].get("conversation_urn"))
                 url = f"https://www.linkedin.com/voyager/api/voyagerMessagingGraphQL/graphql?queryId=messengerMessages.8d15783c080e392b337ba57fc576ad21&variables=(conversationUrn:{conversation_urn})"
                 response = send_request(self.session, "GET", url, headers=build_headers(self.csrf_token, keyword=recipient))
                 if response.status_code == 200:
-                    logger.info(f" [+] Inbox read for {recipient}")
+                    logger.debug(f"Inbox read for {recipient}")
                     return response.json()
         except Exception as e:
             logger.error(e)
@@ -202,11 +236,11 @@ class Messanger(SessionManager):
 
     def run(self):
         if not self.load_cookies():
-            logger.info(" [+] Cookies not found")
+            logger.debug("Cookies not found")
             self.login()
         if self.logged_in:
-            logger.info(" [+] Starting crawler")
-            self.db, self.msg = init_db()
+            logger.info("Starting crawler")
+            self.db, self.USER = init_db()
             self.session = create_session(self.cookies)
             self.csrf_token = get_csrf_token(self.cookies)
             self.own_urn = self.get_own_urn()

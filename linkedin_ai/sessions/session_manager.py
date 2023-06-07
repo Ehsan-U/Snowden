@@ -21,7 +21,7 @@ class SessionManager():
 
     def reshape_cookies(self, cookies: list[dict]) :
         if cookies:
-            logger.info(" [+] Reshaping cookies")
+            logger.debug("Reshaping cookies")
             request_cookies = {}
             for cookie in cookies:
                 name = cookie['name']
@@ -40,7 +40,7 @@ class SessionManager():
             with open("data/cookies.json", 'r') as f:
                 self.cookies = self.reshape_cookies(json.load(f))
                 self.logged_in = True
-                logger.info(" [+] Cookies loaded!")
+                logger.debug("Cookies loaded!")
                 return True
         else:
             return False
@@ -48,7 +48,7 @@ class SessionManager():
     def save_cookies(self, cookies: list[dict], user_id: str, user_urn: str) -> None:
         with open("data/cookies.json", 'w') as f:
             json.dump(cookies, f)
-            logger.info(" [+] Cookies saved")
+            logger.debug("Cookies saved")
         with open('data/user_data.json', 'w') as f:
             json.dump({"user": user_id.split('/')[-2], "user_urn": user_urn}, f)
 
@@ -57,7 +57,7 @@ class SessionManager():
         try:
             self.init_playwright()
             self.page.goto(self.login_url)
-            input(" [+] Compelete login and press enter:")
+            input("Compelete login and press enter:")
         except Exception as e:
             logger.error(e)
         else:

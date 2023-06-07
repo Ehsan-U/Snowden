@@ -12,24 +12,22 @@ class ChatBot():
         config = configparser.ConfigParser()
         config.read("config.ini")
         openai.api_key = config.get("OpenAI", "key")
-        self.max_tokens = max_tokens
+        self.max_tokens = int(config.get("OpenAI", "maxtoken")) if config.get("OpenAI", "maxtoken") else max_tokens
         self.system_prompt = {"role": "system", "content": "you are a helpful assistant"}
-        logger.info(" [+] API key Loaded")
+        logger.info("API key Loaded")
 
-    def build_gpt3_prompt(self, history):
+    def build_gpt3_prompt(self, recent_msg):
         try:
-            logger.info("[+] Building prompt")
+            logger.debug("Building prompt")
             prompt = [self.system_prompt]
-            for message in history:
-                # gpt only allow roles ( user, system, assistant )
-                prompt.append({"role": 'user', "content": message['body']})
+            prompt.append({"role": 'user', "content": recent_msg['body']})
             return prompt
         except Exception as e:
             logger.error(e)
 
 
-    def construct_prompt(self, chat_history):
-        prompt = self.build_gpt3_prompt(chat_history)
+    def construct_prompt(self, recent_msg):
+        prompt = self.build_gpt3_prompt(recent_msg)
         return prompt
 
 
@@ -57,7 +55,7 @@ class ChatBot():
         try:
             prompt = [
                 self.system_prompt,
-                {"role": "user", "content": f"write a short personalized message to {recipient} in context of linkedin. This is the profile headline of {recipient}: {recipientHeadline}"}
+                {"role": "user", "content": f"write a short personalized message to {recipient} in context of linkedin (do not add regards). This is the profile headline of {recipient}: {recipientHeadline}"}
             ]
             response = self.call_gpt(prompt)
             gpt_reply = self.parse(response)

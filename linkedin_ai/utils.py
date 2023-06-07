@@ -14,7 +14,7 @@ from tinydb import TinyDB, Query
 
 
 def init_db():
-    logger.info(" [+] Initializing database")
+    logger.info("Initializing database")
     return (TinyDB(".tinydb/db.json"), Query())
 
 def create_session(cookies):
@@ -25,7 +25,7 @@ def create_session(cookies):
 def send_request(s, method: str = None, url: str = None, **kwargs):
     try:
         sleep_time = random.choice(settings.SLEEP_RANGE)
-        logger.info(f" [+] Sleeping for {sleep_time}")
+        logger.debug(f"Sleeping for {sleep_time}")
         time.sleep(sleep_time)
         response = s.request(
             method=method,
