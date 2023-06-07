@@ -2,19 +2,18 @@
 """ OpenAI chatbot """
 
 import openai
-import configparser
 from linkedin_ai.logging_config import logger
+import linkedin_ai.settings as settings
 
 
 class ChatBot():
 
-    def __init__(self, max_tokens=100):
-        config = configparser.ConfigParser()
-        config.read("config.ini")
-        openai.api_key = config.get("OpenAI", "key")
-        self.max_tokens = int(config.get("OpenAI", "maxtoken")) if config.get("OpenAI", "maxtoken") else max_tokens
+    def __init__(self):
+        openai.api_key = settings.key
+        self.max_tokens = settings.max_tokens
         self.system_prompt = {"role": "system", "content": "you are a helpful assistant"}
         logger.info("API key Loaded")
+
 
     def build_gpt3_prompt(self, recent_msg):
         try:

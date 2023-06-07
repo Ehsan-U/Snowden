@@ -1,3 +1,16 @@
+import configparser
+
+#### user settings ####
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+key = config.get("OpenAI", "key")
+max_tokens = int(config.get("OpenAI", "max_tokens")) if config.get("OpenAI", "max_tokens") else 100
+per_user_limit = int(config.get("OpenAI", "per_user_limit")) if config.get("OpenAI", "per_user_limit") else 5
+
+
+#### program settings ####
+
 SEARCH_HEADERS = {
     "X-Restli-Protocol-Version": "2.0.0",
     "X-Li-Pem-Metadata": "Voyager - Search Typeahead Page=global-search-typeahead-result",

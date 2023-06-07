@@ -87,6 +87,9 @@ class Messanger(SessionManager):
         while True:
             chat_history = self.read_inbox(recipient=recipient_username)
             if chat_history:
+                if self.reached_user_limit(recipient_username):
+                    logger.debug(f"Reached user messages limit")
+                    break
                 # mean we already have a chat
                 parsed_history = self.parse_chat(chat_history, recipient_name)
                 if parsed_history:
@@ -99,9 +102,6 @@ class Messanger(SessionManager):
                             gpt_reply = bot.parse(response)
                             if gpt_reply:
                                 self.send_msg(gpt_reply, recipient_username, recipient_urn, tracking_id)
-                                if self.reached_user_limit(recipient_username):
-                                    logger.debug(f"Reached user messages limit")
-                                    break
                                 self.update_message_count(recipient_username)
                         continue
             else:
@@ -193,7 +193,7 @@ class Messanger(SessionManager):
             if not message_count:
                 # first time, count will not exist
                 return False
-            if message_count >= 4:
+            if message_count >= settings.per_user_limit:
                 return True
         except Exception as e:
             logger.error(e)
