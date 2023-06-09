@@ -99,10 +99,18 @@ class Messanger(SessionManager):
                         prompt = bot.construct_prompt(recent_msg)
                         if prompt:
                             response = bot.call_gpt(prompt)
-                            gpt_reply = bot.parse(response)
-                            if gpt_reply:
-                                self.send_msg(gpt_reply, recipient_username, recipient_urn, tracking_id)
-                                self.update_message_count(recipient_username)
+                            response = bot.parse(response)
+                            if response:
+                                message = response.get("gpt_reply")
+                                is_sale_made = response.get("is_user_agree_to_buy")
+                                is_reply_required = response.get('is_reply_required')
+                                if not is_sale_made and is_reply_required:
+                                    self.send_msg(message, recipient_username, recipient_urn, tracking_id)
+                                    self.update_message_count(recipient_username)
+                                else:
+                                    # sale made
+                                    logger.info(f"Sale made: {recipient_name}")
+                                    break
                         continue
             else:
                 inital_msg = bot.generate_msg(recipient_name, recipient_headline)

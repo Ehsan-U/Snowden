@@ -9,3 +9,4 @@ chat.json
 message.json
 config.ini
 user.json
+*.json
