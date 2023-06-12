@@ -17,6 +17,7 @@ class ChatBot():
             "is_reply_required": bool decide based on user_response whether reply required to user_response or not,
             "gpt_reply": "reply to person message if reply required"
             "is_user_agree_to_buy": bool decide based on user_response whether user want to buy service or not
+            "is_user_decline_to_buy": bool decide based on user_response whether user want to buy service or not
         }"""}
         logger.info("API key Loaded")
 
@@ -54,6 +55,7 @@ class ChatBot():
             data = json.loads(content)
             return data
         except JSONDecodeError as e:
+            logger.error(e)
             return content
         except Exception as e:
             logger.error(e)

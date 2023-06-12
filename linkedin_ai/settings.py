@@ -7,7 +7,7 @@ config.read("config.ini")
 key = config.get("OpenAI", "key")
 max_tokens = int(config.get("OpenAI", "max_tokens")) if config.get("OpenAI", "max_tokens") else 100
 per_user_limit = int(config.get("OpenAI", "per_user_limit")) if config.get("OpenAI", "per_user_limit") else 5
-
+wait_time = int(config.get("OpenAI", "wait_time")) if config.get("OpenAI", "wait_time") else 10
 
 #### program settings ####
 
@@ -63,6 +63,6 @@ MSG_PAYLOAD = {
     ]
 }
 
-DELAY = 15
+DELAY = 10
 SLEEP_RANGE = [i / 10 for i in range(10, DELAY * 10)]
 MESSAGE = "Hi"

@@ -84,6 +84,7 @@ class Messanger(SessionManager):
 
     def make_sale(self, recipient_name, recipient_headline, recipient_urn, tracking_id, recipient_username):
         bot = ChatBot()
+        inital_timer = time.time()
         while True:
             chat_history = self.read_inbox(recipient=recipient_username)
             if chat_history:
@@ -95,6 +96,7 @@ class Messanger(SessionManager):
                 if parsed_history:
                     recent_msg = sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True)[0]
                     if recipient_urn.lower() in recent_msg.get("sender").lower():
+                        inital_timer = time.time()
                         logger.info(f"got reply from {recipient_name}")
                         prompt = bot.construct_prompt(recent_msg)
                         if prompt:
@@ -103,15 +105,24 @@ class Messanger(SessionManager):
                             if response:
                                 message = response.get("gpt_reply")
                                 is_sale_made = response.get("is_user_agree_to_buy")
+                                is_decline = response.get("is_user_decline_to_buy")
                                 is_reply_required = response.get('is_reply_required')
-                                if not is_sale_made and is_reply_required:
+                                if not is_sale_made and is_reply_required and not is_decline:
                                     self.send_msg(message, recipient_username, recipient_urn, tracking_id)
                                     self.update_message_count(recipient_username)
+                                elif is_decline:
+                                    # user decline to buy
+                                    logger.info(f"User decline to buy: {recipient_name}")
+                                    break
                                 else:
                                     # sale made
                                     logger.info(f"Sale made: {recipient_name}")
                                     break
                         continue
+                    else:
+                        if time.time() - inital_timer > settings.wait_time:
+                            logger.info(f"Timeout for user: {recipient_name}")
+                            break
             else:
                 inital_msg = bot.generate_msg(recipient_name, recipient_headline)
                 self.send_msg(inital_msg, recipient_username, recipient_urn, tracking_id)
