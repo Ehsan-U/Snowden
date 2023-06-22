@@ -94,8 +94,8 @@ class Messanger(SessionManager):
                 # mean we already have a chat
                 parsed_history = self.parse_chat(chat_history, recipient_name)
                 if parsed_history:
-                    recent_msg = sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True)[0]
-                    if recipient_urn.lower() in recent_msg.get("sender").lower():
+                    recent_msgs = self.get_recent_msgs(sorted(parsed_history.get("all"), key=lambda x: x['timestamp'], reverse=True), recipient_urn)
+                    for recent_msg in recent_msgs:
                         inital_timer = time.time()
                         logger.info(f"got reply from {recipient_name}")
                         prompt = bot.construct_prompt(recent_msg)
@@ -113,12 +113,11 @@ class Messanger(SessionManager):
                                 elif is_decline:
                                     # user decline to buy
                                     logger.info(f"User decline to buy: {recipient_name}")
-                                    break
+                                    return
                                 else:
                                     # sale made
                                     logger.info(f"Sale made: {recipient_name}")
-                                    break
-                        continue
+                                    return
                     else:
                         if time.time() - inital_timer > settings.wait_time:
                             logger.info(f"Timeout for user: {recipient_name}")
@@ -138,7 +137,7 @@ class Messanger(SessionManager):
                     schema = {
                         "body": message.get("body").get("text"),
                         "timestamp": message.get("deliveredAt"),
-                        "sender": message.get("*sender")
+                        "sender": message.get("*sender"),
                     }
                     if self.own_urn.lower() in sender.lower():
                         history['me'].append(schema)
@@ -146,6 +145,22 @@ class Messanger(SessionManager):
                         history[recipient_name].append(schema)
                     history["all"].append(schema)
             return history
+        except Exception as e:
+            logger.error(e)
+
+
+    @staticmethod
+    def get_recent_msgs(sorted_chat_history, recipient_urn):
+        try:
+            logger.debug("Getting recent messages")
+            msgs = []
+            for msg in sorted_chat_history:
+                if recipient_urn.lower() in msg.get("sender").lower():
+                    msgs.append(msg)
+                else:
+                    # means we have reached our own message
+                    break
+            return msgs
         except Exception as e:
             logger.error(e)
 
